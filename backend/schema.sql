@@ -22,7 +22,7 @@ create table personnes (
     role text not null default 'candidat'
         check (role in ('admin','recruteur','candidat')),
     entreprise_id integer,
-    foreign key (entreprise_id) references entreprises(id)
+    foreign key (entreprise_id) references entreprises(id) on delete set null
 );
 
 create table offres (
@@ -40,8 +40,8 @@ create table offres (
     entreprise_id integer not null,
     recruteur_id integer,
     foreign key (categorie_id) references categories(id),
-    foreign key (entreprise_id) references entreprises(id),
-    foreign key (recruteur_id) references personnes(id)
+    foreign key (entreprise_id) references entreprises(id) on delete cascade,
+    foreign key (recruteur_id) references personnes(id) on delete set null
 );
 
 create table candidatures (
@@ -55,6 +55,6 @@ create table candidatures (
     message text not null,
     email_envoye integer not null default 0,
     date_de_candidature text not null default (date('now')),
-    foreign key (offre_id) references offres(id),
-    foreign key (personne_id) references personnes(id)
+    foreign key (offre_id) references offres(id) on delete cascade,
+    foreign key (personne_id) references personnes(id) on delete set null
 );
