@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inscription - Job Board</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html">Job Board</a>
+    <nav class="site-nav" aria-label="Navigation principale">
+      <a href="index.html">Offres</a>
+      <a href="login.html">Connexion</a>
+    </nav>
+  </header> 
+
+    <main class="page">
+        <section class="panel">
+        <h1>Inscription</h1>
+        <p id="register-message" class="feedback"></p>
+    
+        <form id="register-form">
+            <div class="form-grid">
+            <label>
+                Prenom
+                <input name="prenom" required>
+            </label>
+    
+            <label>
+                Nom
+                <input name="nom" required>
+            </label>
+    
+            <label>
+                Email
+                <input name="email" type="email" required>
+            </label>
+    
+            <label>
+                Mot de passe
+                <input name="password" type="password" required>
+            </label>
+    
+            <label>
+                Confirmer le mot de passe
+                <input name="confirmPassword" type="password" required>
+            </label>
+            </div>
+    
+            <button type="submit">S'inscrire</button>
+        </form>
+        </section>
+    </main> 
+
+    <script src="register.js"></script>
+
+    
+</body>
+</html>

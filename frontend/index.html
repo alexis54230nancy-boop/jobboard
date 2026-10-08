@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Job Board</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html">Job Board</a>
+
+    <nav class="site-nav" aria-label="Navigation principale">
+      <a href="index.html">Offres</a>
+      <a href="login.html">Connexion</a>
+      <a href="register.html">Inscription</a>
+    </nav>
+  </header>
+
+  <main class="page">
+    <section class="intro">
+      <p class="eyebrow">Opportunites tech</p>
+      <h1>Trouve une offre et postule simplement</h1>
+      <p>Parcours les offres disponibles, consulte les details et envoie ta candidature sans recharger la page.</p>
+    </section>
+
+    <section class="toolbar" aria-label="Filtres">
+      <label for="search">Rechercher</label>
+      <input id="search" type="search" placeholder="Titre, entreprise, ville...">
+    </section>
+
+    <section>
+      <div id="offers-list" class="offers-grid"></div>
+    </section>
+
+    <section id="offer-detail" class="panel" hidden></section>
+
+    <section id="apply-panel" class="panel" hidden>
+      <h2>Postuler</h2>
+      <form id="apply-form">
+        <div class="form-grid">
+          <label>
+            Prenom
+            <input name="prenom" required>
+          </label>
+
+          <label>
+            Nom
+            <input name="nom" required>
+          </label>
+
+          <label>
+            Email
+            <input name="email" type="email" required>
+          </label>
+
+          <label>
+            Telephone
+            <input name="telephone">
+          </label>
+        </div>
+
+        <label>
+          Message
+          <textarea name="message" required></textarea>
+        </label>
+
+        <button type="submit">Envoyer ma candidature</button>
+      </form>
+
+      <p id="apply-message" class="feedback"></p>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
