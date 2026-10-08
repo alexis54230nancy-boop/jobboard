@@ -24,12 +24,15 @@ $page = (int) ($_GET['page'] ?? 1);
 if ($page < 1) {
     $page = 1;
 }
-$par_page = 2;
+$par_page = 10;
 $offset = ($page - 1) * $par_page;
 
 
 if ($methode === 'GET' && $chemin === '/offres') {
-    $requete = $db->prepare('SELECT * FROM offres LIMIT :limite OFFSET :offset');
+    $requete = $db->prepare('SELECT offres.*, entreprises.nom AS entreprise
+    FROM offres
+    JOIN entreprises ON offres.entreprise_id = entreprises.id
+    LIMIT :limite OFFSET :offset');
 
     $requete->bindValue(':limite', $par_page, PDO::PARAM_INT);
     $requete->bindValue(':offset', $offset, PDO::PARAM_INT);
