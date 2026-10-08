@@ -32,6 +32,7 @@ if ($methode === 'GET' && $chemin === '/offres') {
     $requete = $db->prepare('SELECT offres.*, entreprises.nom AS entreprise
     FROM offres
     JOIN entreprises ON offres.entreprise_id = entreprises.id
+    ORDER BY offres.date_de_publication DESC, offres.id DESC
     LIMIT :limite OFFSET :offset');
 
     $requete->bindValue(':limite', $par_page, PDO::PARAM_INT);
@@ -41,7 +42,9 @@ if ($methode === 'GET' && $chemin === '/offres') {
 
     echo json_encode(['offres' => $requete->fetchAll(), 'page' => $page, 'total' => $total]);
 } elseif ($methode === 'GET' && $chemin === '/entreprises') {
-    $requete = $db->prepare('SELECT * FROM entreprises LIMIT :limite OFFSET :offset');
+    $requete = $db->prepare('SELECT * FROM entreprises 
+    ORDER BY nom ASC 
+    LIMIT :limite OFFSET :offset');
 
     $requete->bindValue(':limite', $par_page, PDO::PARAM_INT);
     $requete->bindValue(':offset', $offset, PDO::PARAM_INT);
