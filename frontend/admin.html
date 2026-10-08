@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administration - Job Board</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html">Job Board</a>
+    <nav class="site-nav" aria-label="Navigation principale">
+      <a href="index.html">Offres</a>
+      <a href="login.html">Connexion</a>
+    </nav>
+  </header>
+
+  <main class="page">
+    <section class="panel">
+      <h1>Administration</h1>
+      <p id="admin-message" class="feedback"></p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Offre</th>
+              <th>Candidat</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="applications-list"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="admin.js"></script>
+</body>
+</html>
