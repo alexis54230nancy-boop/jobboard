@@ -135,7 +135,7 @@ Dans `index.php`, toujours dans le même ordre :
 | PUT | `/{table}/{id}` | Modifier (envoyer tous les champs) | 200 |
 | DELETE | `/{table}/{id}` | Supprimer | 204 |
 
-**Accès.** Tout le monde peut lire les offres, les entreprises et les catégories. Lire les personnes et les candidatures, et toute création, modification ou suppression, est réservé à l'admin.
+**Accès.** Tout le monde peut lire les offres, les entreprises et les catégories. Lire les personnes et les candidatures, et toute création, modification ou suppression, est réservé à l'admin. Une exception : un recruteur connecté peut créer une offre (`POST /offres`), toujours pour sa propre entreprise.
 
 **Pagination.** `?page=2` pour la page, `?par_page=20` pour sa taille (10 par défaut, 100 au plus).
 

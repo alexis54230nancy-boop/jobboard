@@ -28,6 +28,8 @@ Tout ce que le front peut demander au serveur, avec un exemple pour chaque cas.
 
 `POST /offres/{id}/candidatures` est ouvert à tout le monde : c'est la seule écriture publique.
 
+Un **recruteur** connecté peut aussi créer une offre avec `POST /offres`. L'offre est rattachée à son entreprise et à son compte : `entreprise_id` et `recruteur_id` viennent de son compte, pas du formulaire. Il ne peut ni modifier ni supprimer une offre, et un recruteur sans entreprise reçoit un 403.
+
 ## Les champs de chaque table
 
 Ce sont les champs à envoyer dans un `POST` ou un `PUT`. Un champ inconnu est ignoré.

@@ -81,7 +81,11 @@ if (preg_match('#^/(' . $tables . ')(?:/(\d+))?$#', $chemin, $m)) {
     $select = $desc['select'] ?? "SELECT * FROM $table";
 
     // Gestion des droits d'accès : lire une table publique est ouvert à tous, tout le reste est réservé à l'admin
-    if ($methode !== 'GET' || ($desc['lecture'] ?? '') === 'admin') {
+    // Une exception : un recruteur connecté a le droit de créer une offre (POST /offres)
+    $recruteur = $table === 'offres' && $methode === 'POST' && $id === null
+        && ($_SESSION['utilisateur']['role'] ?? '') === 'recruteur';
+
+    if (!$recruteur && ($methode !== 'GET' || ($desc['lecture'] ?? '') === 'admin')) {
         exigerAdmin();
     }
 
@@ -136,7 +140,20 @@ if (preg_match('#^/(' . $tables . ')(?:/(\d+))?$#', $chemin, $m)) {
 
     // POST /{table} — Créer
     if ($methode === 'POST' && $id === null) {
-        $valeurs = verifier($db, $desc, lireJson(), $liens);
+        $donnees = lireJson();
+
+        // Un recruteur publie pour SON entreprise : l'entreprise et le recruteur de l'offre
+        // viennent de son compte, pas du formulaire. Il ne peut pas publier pour une autre.
+        if ($recruteur) {
+            $compte = lire($db, 'SELECT * FROM personnes', 'personnes', (int) $_SESSION['utilisateur']['id']);
+            if (!$compte || $compte['role'] !== 'recruteur' || !$compte['entreprise_id']) {
+                erreur(403, "Votre compte recruteur n'est rattaché à aucune entreprise");
+            }
+            $donnees['entreprise_id'] = $compte['entreprise_id'];
+            $donnees['recruteur_id'] = $compte['id'];
+        }
+
+        $valeurs = verifier($db, $desc, $donnees, $liens);
         if ($table === 'personnes') {
             $valeurs = reglesPersonne($db, $valeurs, null);
         }
