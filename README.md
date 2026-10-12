@@ -47,7 +47,10 @@ backend/
 ├── seed.php       les données de test
 ├── database.php   connecter() : la connexion à la base
 ├── auth.php       exigerAdmin() : la protection des routes admin
-└── index.php      l'API : toutes les requêtes arrivent ici
+├── index.php      l'API : toutes les requêtes arrivent ici
+├── tables.php     la description des 5 tables
+├── outils.php     les fonctions de l'API : repondre(), verifier()…
+└── front.php      l'envoi des pages du front
 frontend/          les pages, le CSS et le JavaScript
 scripts/
 └── init-db.php    initialise uniquement une base absente
@@ -57,7 +60,7 @@ scripts/
 
 ## Base de données
 
-Cinq tables, décrites dans `backend/schema.sql`. `*` = obligatoire, `→` = clé étrangère.
+Cinq tables, décrites dans `backend/schema.sql`. `*` = obligatoire, `→` = clé étrangère. Le diagramme des tables est dans [docs/BASE_DE_DONNEES.md](docs/BASE_DE_DONNEES.md).
 
 | Table | Colonnes |
 |---|---|
@@ -92,7 +95,33 @@ Ce qui se passe quand on supprime une ligne :
 
 ## API
 
-Toute l'API est dans `backend/index.php`. Les cinq tables se gèrent de la même façon : elles sont **décrites une seule fois**, dans le tableau `$ressources` (champs obligatoires, champs facultatifs, droit de lecture, tri), et **un seul code** fournit les mêmes cinq routes pour chacune.
+L'API démarre dans `backend/index.php`. Les cinq tables se gèrent de la même façon : elles sont **décrites une seule fois**, dans le tableau `$ressources` de `backend/tables.php` (champs obligatoires, champs facultatifs, droit de lecture, tri), et **un seul code** fournit les mêmes cinq routes pour chacune.
+
+Des exemples complets de requêtes et de réponses sont dans [docs/API.md](docs/API.md).
+
+### Les fichiers du back end
+
+| Fichier | Rôle |
+|---|---|
+| `index.php` | Le point d'entrée : il suit chaque requête, de sa lecture à la réponse |
+| `front.php` | Envoie les fichiers de `frontend/` (pages, CSS, JavaScript) |
+| `tables.php` | Décrit les 5 tables : `$ressources` et `$liens` |
+| `outils.php` | Les fonctions : `repondre()`, `erreur()`, `lireJson()`, `lire()`, `inserer()`, `verifier()`, `reglesPersonne()` |
+| `auth.php` | `exigerAdmin()` : 401 si non connecté, 403 si pas admin |
+| `database.php` | `connecter()` : la connexion à la base |
+
+`index.php` charge tous les autres avec `require` : il ne fonctionne pas sans eux.
+
+### Le trajet d'une requête
+
+Dans `index.php`, toujours dans le même ordre :
+
+1. **Lecture** de la méthode et du chemin.
+2. **Front** : si le chemin désigne un fichier de `frontend/`, il est envoyé et on s'arrête là.
+3. **Initialisation** : réponses en JSON, session, connexion à la base, description des tables.
+4. **Postuler** : la route `POST /offres/{id}/candidatures`.
+5. **Les cinq routes** de la table demandée : droits, existence de la ligne, puis l'action.
+6. **Sinon**, 404 « Route introuvable ».
 
 ### Les cinq routes de chaque table
 
