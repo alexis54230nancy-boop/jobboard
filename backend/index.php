@@ -7,7 +7,7 @@
  *  Le front :  http://localhost:8000          L'API :  http://localhost:8000/offres
  *
  *  L'idée : les 5 tables se gèrent de la même façon. On les DÉCRIT une seule fois
- *  (section 4), et un seul code fournit les 5 routes de chacune (section 6) :
+ *  (section 3), et un seul code fournit les 5 routes de chacune (section 5) :
  *
  *    GET    /{table}         liste paginée   ?page=2  ?par_page=20  + filtres
  *    GET    /{table}/{id}    détail
@@ -19,7 +19,7 @@
  *               personnes, candidatures           → lecture réservée à l'admin
  *    Filtres :  /offres?entreprise_id=3   /offres?categorie_id=2   /candidatures?offre_id=1
  *
- *  Une route à part (section 5) :
+ *  Une route à part (section 4) :
  *    POST   /offres/{id}/candidatures   postuler à une offre   public
  *
  *  Codes :  200 OK · 201 créé · 204 supprimé · 400 données invalides
@@ -29,26 +29,10 @@
  */
 
 
-// ─── 1. Les outils ────────────────────────────────────────
+// ─── Réglages ─────────────────────────────────────────────
 
 // Les avertissements PHP vont dans le terminal du serveur, pas au milieu du JSON
 ini_set('display_errors', '0');
-
-// Envoie la réponse en JSON avec son code HTTP, puis arrête le script
-function repondre($code, $donnees = null)
-{
-    http_response_code($code);
-    if ($donnees !== null) {
-        echo json_encode($donnees, JSON_UNESCAPED_UNICODE);   // garde les accents lisibles
-    }
-    exit;
-}
-
-// Envoie une erreur, toujours au même format : { "erreur": "…" }
-function erreur($code, $message)
-{
-    repondre($code, ['erreur' => $message]);
-}
 
 // Une erreur imprévue (bug, base inaccessible…) → 500 en JSON, le détail reste dans le terminal
 set_exception_handler(function ($exception) {
@@ -56,114 +40,8 @@ set_exception_handler(function ($exception) {
     erreur(500, 'Erreur interne du serveur');
 });
 
-// Lit le JSON envoyé dans le corps de la requête (POST et PUT)
-function lireJson()
-{
-    $donnees = json_decode(file_get_contents('php://input'), true);
-    if (!is_array($donnees)) {
-        erreur(400, 'Le corps de la requête doit être du JSON');
-    }
-    return $donnees;
-}
 
-// Renvoie la ligne n°$id d'une table, ou false si elle n'existe pas.
-// $select et $table sont toujours écrits par nous, jamais par l'utilisateur.
-function lire($db, $select, $table, $id)
-{
-    $requete = $db->prepare("$select WHERE $table.id = :id");
-    $requete->bindValue(':id', $id, PDO::PARAM_INT);
-    $requete->execute();
-    return $requete->fetch();
-}
-
-// Insère une ligne et renvoie son id. implode() assemble les noms des colonnes :
-// ['nom', 'ville'] → INSERT INTO entreprises (nom, ville) VALUES (:nom, :ville)
-function inserer($db, $table, $valeurs)
-{
-    $colonnes = array_keys($valeurs);
-    $requete = $db->prepare(
-        "INSERT INTO $table (" . implode(', ', $colonnes) . ') VALUES (:' . implode(', :', $colonnes) . ')'
-    );
-    $requete->execute($valeurs);
-    return (int) $db->lastInsertId();
-}
-
-// Vérifie les données d'un formulaire d'après la description de la table (section 4).
-// Un problème → 400, et le script s'arrête. Sinon : les valeurs prêtes à être enregistrées.
-function verifier($db, $description, $donnees, $liens)
-{
-    $valeurs = [];
-
-    foreach (array_merge($description['obligatoires'], $description['facultatifs']) as $champ) {
-        $valeur = $donnees[$champ] ?? null;
-
-        // On retire les espaces autour des textes (sauf d'un mot de passe) ; un texte vide = rien
-        if (is_string($valeur) && $champ !== 'mot_de_passe') {
-            $valeur = trim($valeur);
-        }
-        if ($valeur === '') {
-            $valeur = null;
-        }
-
-        if ($champ === 'email_envoye') {
-            $valeur = empty($valeur) ? 0 : 1;   // 1 = oui, 0 = non
-        } elseif ($valeur === null) {
-            if (in_array($champ, $description['obligatoires'])) {
-                erreur(400, "Le champ $champ est requis");
-            }
-        } elseif (is_array($valeur) || is_bool($valeur)) {
-            erreur(400, "Le champ $champ a une valeur invalide");
-        } elseif (isset($liens[$champ]) || strpos($champ, 'salaire_') === 0) {
-            // Un « _id » ou un salaire : un nombre entier positif…
-            if (filter_var($valeur, FILTER_VALIDATE_INT) === false || $valeur < 0) {
-                erreur(400, "Le champ $champ doit être un nombre entier positif");
-            }
-            // … et, pour un « _id », une ligne qui existe dans la table pointée
-            if (isset($liens[$champ]) && !lire($db, 'SELECT id FROM ' . $liens[$champ], $liens[$champ], $valeur)) {
-                erreur(400, "$champ ne correspond à aucun élément existant");
-            }
-        } elseif ($champ === 'email' && filter_var($valeur, FILTER_VALIDATE_EMAIL) === false) {
-            erreur(400, "L'adresse e-mail n'est pas valide");
-        }
-
-        $valeurs[$champ] = $valeur;
-    }
-
-    return $valeurs;
-}
-
-// Les règles propres aux personnes. $id vaut null pour une création.
-function reglesPersonne($db, $valeurs, $id)
-{
-    // Le rôle : « candidat » par défaut, et seulement une des 3 valeurs du schéma
-    $valeurs['role'] = $valeurs['role'] ?? 'candidat';
-    if (!in_array($valeurs['role'], ['admin', 'recruteur', 'candidat'], true)) {
-        erreur(400, 'role doit valoir admin, recruteur ou candidat');
-    }
-
-    // L'e-mail est unique : déjà pris par quelqu'un d'AUTRE → 409 (conflit)
-    $requete = $db->prepare('SELECT id FROM personnes WHERE email = :email AND id != :id');
-    $requete->execute(['email' => $valeurs['email'], 'id' => $id ?? 0]);
-    if ($requete->fetch()) {
-        erreur(409, 'Cet e-mail est déjà utilisé');
-    }
-
-    // Le mot de passe n'est jamais stocké en clair : on enregistre son empreinte (hash).
-    // Obligatoire à la création ; en modification, s'il est vide, on garde l'ancien.
-    if ($valeurs['mot_de_passe'] === null) {
-        if ($id === null) {
-            erreur(400, 'Le champ mot_de_passe est requis');
-        }
-        unset($valeurs['mot_de_passe']);
-    } else {
-        $valeurs['mot_de_passe'] = password_hash((string) $valeurs['mot_de_passe'], PASSWORD_DEFAULT);
-    }
-
-    return $valeurs;
-}
-
-
-// ─── 2. Lecture de la requête ─────────────────────────────
+// ─── 1. Lecture de la requête ─────────────────────────────
 
 // La méthode : GET, POST, PUT ou DELETE
 $methode = $_SERVER['REQUEST_METHOD'];
@@ -175,7 +53,7 @@ if (!is_string($chemin)) {
 }
 
 
-// ─── 3. Le front ──────────────────────────────────────────
+// ─── 2. Le front ──────────────────────────────────────────
 // « / », « /admin.html », « /style.css »… : les fichiers de frontend/ sont envoyés tels quels.
 // Le front et l'API ont ainsi la même adresse : fetch('/offres') et le cookie de session marchent.
 
@@ -203,7 +81,7 @@ if (
 }
 
 
-// ─── 4. La description des tables ─────────────────────────
+// ─── 3. La description des tables ─────────────────────────
 
 // À partir d'ici, toutes les réponses sont en JSON
 header('Content-Type: application/json; charset=utf-8');
@@ -274,7 +152,7 @@ $liens = [
 ];
 
 
-// ─── 5. La route à part : postuler ────────────────────────
+// ─── 4. La route à part : postuler ────────────────────────
 // Chaque route se termine par repondre() ou erreur(), qui arrêtent le script.
 // Dans les modèles de chemin, (\d+) capture l'id : « /offres/3/… » → $morceaux[1] vaut '3'.
 
@@ -311,7 +189,7 @@ if ($methode === 'POST' && preg_match('#^/offres/(\d+)/candidatures$#', $chemin,
 }
 
 
-// ─── 6. Les 5 routes communes à toutes les tables ─────────
+// ─── 5. Les 5 routes communes à toutes les tables ─────────
 
 // Le modèle reconnaît « /offres », « /entreprises/3 »… : le nom d'une table, puis un id facultatif
 $tables = implode('|', array_keys($ressources));   // « offres|entreprises|categories|… »
@@ -425,6 +303,133 @@ if (preg_match('#^/(' . $tables . ')(?:/(\d+))?$#', $chemin, $morceaux)) {
 }
 
 
-// ─── 7. Aucune route ne correspond ────────────────────────
+// ─── 6. Aucune route ne correspond ────────────────────────
 
 erreur(404, 'Route introuvable');
+
+
+// ─── 7. Les outils ────────────────────────────────────────
+// Les fonctions utilisées par les routes ci-dessus. PHP accepte qu'une fonction
+// soit écrite après l'endroit où on l'appelle.
+
+// Envoie la réponse en JSON avec son code HTTP, puis arrête le script
+function repondre($code, $donnees = null)
+{
+    http_response_code($code);
+    if ($donnees !== null) {
+        echo json_encode($donnees, JSON_UNESCAPED_UNICODE);   // garde les accents lisibles
+    }
+    exit;
+}
+
+// Envoie une erreur, toujours au même format : { "erreur": "…" }
+function erreur($code, $message)
+{
+    repondre($code, ['erreur' => $message]);
+}
+
+// Lit le JSON envoyé dans le corps de la requête (POST et PUT)
+function lireJson()
+{
+    $donnees = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($donnees)) {
+        erreur(400, 'Le corps de la requête doit être du JSON');
+    }
+    return $donnees;
+}
+
+// Renvoie la ligne n°$id d'une table, ou false si elle n'existe pas.
+// $select et $table sont toujours écrits par nous, jamais par l'utilisateur.
+function lire($db, $select, $table, $id)
+{
+    $requete = $db->prepare("$select WHERE $table.id = :id");
+    $requete->bindValue(':id', $id, PDO::PARAM_INT);
+    $requete->execute();
+    return $requete->fetch();
+}
+
+// Insère une ligne et renvoie son id. implode() assemble les noms des colonnes :
+// ['nom', 'ville'] → INSERT INTO entreprises (nom, ville) VALUES (:nom, :ville)
+function inserer($db, $table, $valeurs)
+{
+    $colonnes = array_keys($valeurs);
+    $requete = $db->prepare(
+        "INSERT INTO $table (" . implode(', ', $colonnes) . ') VALUES (:' . implode(', :', $colonnes) . ')'
+    );
+    $requete->execute($valeurs);
+    return (int) $db->lastInsertId();
+}
+
+// Vérifie les données d'un formulaire d'après la description de la table (section 3).
+// Un problème → 400, et le script s'arrête. Sinon : les valeurs prêtes à être enregistrées.
+function verifier($db, $description, $donnees, $liens)
+{
+    $valeurs = [];
+
+    foreach (array_merge($description['obligatoires'], $description['facultatifs']) as $champ) {
+        $valeur = $donnees[$champ] ?? null;
+
+        // On retire les espaces autour des textes (sauf d'un mot de passe) ; un texte vide = rien
+        if (is_string($valeur) && $champ !== 'mot_de_passe') {
+            $valeur = trim($valeur);
+        }
+        if ($valeur === '') {
+            $valeur = null;
+        }
+
+        if ($champ === 'email_envoye') {
+            $valeur = empty($valeur) ? 0 : 1;   // 1 = oui, 0 = non
+        } elseif ($valeur === null) {
+            if (in_array($champ, $description['obligatoires'])) {
+                erreur(400, "Le champ $champ est requis");
+            }
+        } elseif (is_array($valeur) || is_bool($valeur)) {
+            erreur(400, "Le champ $champ a une valeur invalide");
+        } elseif (isset($liens[$champ]) || strpos($champ, 'salaire_') === 0) {
+            // Un « _id » ou un salaire : un nombre entier positif…
+            if (filter_var($valeur, FILTER_VALIDATE_INT) === false || $valeur < 0) {
+                erreur(400, "Le champ $champ doit être un nombre entier positif");
+            }
+            // … et, pour un « _id », une ligne qui existe dans la table pointée
+            if (isset($liens[$champ]) && !lire($db, 'SELECT id FROM ' . $liens[$champ], $liens[$champ], $valeur)) {
+                erreur(400, "$champ ne correspond à aucun élément existant");
+            }
+        } elseif ($champ === 'email' && filter_var($valeur, FILTER_VALIDATE_EMAIL) === false) {
+            erreur(400, "L'adresse e-mail n'est pas valide");
+        }
+
+        $valeurs[$champ] = $valeur;
+    }
+
+    return $valeurs;
+}
+
+// Les règles propres aux personnes. $id vaut null pour une création.
+function reglesPersonne($db, $valeurs, $id)
+{
+    // Le rôle : « candidat » par défaut, et seulement une des 3 valeurs du schéma
+    $valeurs['role'] = $valeurs['role'] ?? 'candidat';
+    if (!in_array($valeurs['role'], ['admin', 'recruteur', 'candidat'], true)) {
+        erreur(400, 'role doit valoir admin, recruteur ou candidat');
+    }
+
+    // L'e-mail est unique : déjà pris par quelqu'un d'AUTRE → 409 (conflit)
+    $requete = $db->prepare('SELECT id FROM personnes WHERE email = :email AND id != :id');
+    $requete->execute(['email' => $valeurs['email'], 'id' => $id ?? 0]);
+    if ($requete->fetch()) {
+        erreur(409, 'Cet e-mail est déjà utilisé');
+    }
+
+    // Le mot de passe n'est jamais stocké en clair : on enregistre son empreinte (hash).
+    // Obligatoire à la création ; en modification, s'il est vide, on garde l'ancien.
+    if ($valeurs['mot_de_passe'] === null) {
+        if ($id === null) {
+            erreur(400, 'Le champ mot_de_passe est requis');
+        }
+        unset($valeurs['mot_de_passe']);
+    } else {
+        $valeurs['mot_de_passe'] = password_hash((string) $valeurs['mot_de_passe'], PASSWORD_DEFAULT);
+    }
+
+    return $valeurs;
+}
