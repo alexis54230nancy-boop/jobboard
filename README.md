@@ -3,32 +3,32 @@
 Un site d'offres d'emploi : les visiteurs consultent les offres et postulent, et un administrateur gère toutes les données.
 
 - **Back end** : une API REST en PHP, sans framework, avec une base SQLite.
-- **Front end** : HTML, CSS et JavaScript, qui lit toutes ses données dans l'API avec `fetch()`.
+- **Front end** : HTML, CSS et JavaScript. Le job board utilise l'API avec `fetch()` ; les pages d'authentification et d'administration restent à relier.
 
 ## Installation et lancement
 
 Il faut **PHP 8** (testé avec PHP 8.2), avec l'extension `pdo_sqlite`, incluse dans XAMPP. Rien d'autre à installer.
 
-Depuis le dossier `backend/` :
+Depuis la racine du dépôt (le dossier qui contient `frontend/` et `backend/`) :
 
 ```bash
-# 1. Créer la base et ses tables (une seule fois)
-php -r '$db = new PDO("sqlite:jobboard.db"); $db->exec(file_get_contents("schema.sql")); echo "OK";'
+# 1. Créer et remplir la base uniquement si elle n'existe pas
+php scripts/init-db.php
 
-# 2. La remplir avec les données de test (relançable à volonté)
-php seed.php
-
-# 3. Lancer le serveur
+# 2. Lancer le serveur
+cd backend
 php -S localhost:8000 index.php
 ```
 
 Puis ouvrir **http://localhost:8000**. Le même serveur envoie le front et répond à l'API : par exemple, http://localhost:8000/offres renvoie les offres en JSON.
 
-Pour repartir de données propres, relancer `php seed.php`. Après une modification de `schema.sql`, supprimer `jobboard.db` et refaire les étapes 1 et 2.
+Laisser ce terminal ouvert pendant l'utilisation du site ; `Ctrl+C` arrête le serveur. Si le port 8000 est déjà occupé, choisir par exemple 8001 dans la commande et dans l'adresse du navigateur.
+
+`scripts/init-db.php` conserve une base existante. **Attention : `php seed.php`, exécuté dans `backend/`, efface toutes les données avant de recréer les exemples.** Ne l'utiliser que pour réinitialiser volontairement une base de test, après sauvegarde si nécessaire. Une modification de `schema.sql` ne met pas automatiquement à jour une base existante.
 
 ## Comptes de test
 
-Créés par `seed.php` :
+Créés par `seed.php`. Les comptes existent dans la base, mais les routes de connexion et d'inscription restent à intégrer : les formulaires ne permettent pas encore de se connecter.
 
 | Rôle | E-mail | Mot de passe |
 |---|---|---|
@@ -49,6 +49,8 @@ backend/
 ├── auth.php       exigerAdmin() : la protection des routes admin
 └── index.php      l'API : toutes les requêtes arrivent ici
 frontend/          les pages, le CSS et le JavaScript
+scripts/
+└── init-db.php    initialise uniquement une base absente
 ```
 
 `jobboard.db`, la base elle-même, n'est pas dans Git : chacun la crée sur son poste avec les étapes ci-dessus.
@@ -150,4 +152,52 @@ Les routes admin appellent `exigerAdmin()` (`backend/auth.php`), qui lit `$_SESS
 
 ## Pages
 
-> **À compléter (Alexis).** Le job board, la connexion, le compte et l'administration.
+### Front end (Alexis)
+
+Le front est réalisé en **HTML, CSS et JavaScript, sans framework**. Le serveur PHP sert aussi les fichiers du dossier `frontend/` : il faut ouvrir le site avec `http://localhost:8000/`, pas directement avec un fichier HTML. Aucun serveur Node séparé n'est nécessaire.
+
+| Fichier | Rôle et état actuel |
+|---|---|
+| `frontend/index.html` | Liste des offres, recherche, pagination, panneau de détail et formulaire de candidature. |
+| `frontend/app.js` | Appels à l'API, création des cartes, événements et gestion du chargement, des succès et des erreurs. |
+| `frontend/style.css` | Style commun, police Space Grotesk avec une police de secours, grille responsive et adaptation du formulaire aux petits écrans. |
+| `frontend/login.html` et `login.js` | Interface de connexion. Un message précise qu'aucune connexion n'est effectuée. |
+| `frontend/register.html` et `register.js` | Interface d'inscription et vérification des champs et de la confirmation du mot de passe. Aucun compte n'est créé pour le moment. |
+| `frontend/admin.html` et `admin.js` | Aperçu avec des candidatures fictives, clairement signalées. Pas encore de gestion des données réelles. |
+
+### Liaison avec l'API
+
+| Action dans la page | Requête envoyée par `app.js` |
+|---|---|
+| Afficher les offres ou changer de page | `GET /offres?page=1&par_page=6` (le numéro de page varie) |
+| Cliquer sur « En savoir plus » | `GET /offres/{id}` |
+| Envoyer une candidature | `POST /offres/{id}/candidatures` avec un corps JSON |
+
+La liste utilise le tableau `offres` de la réponse, ainsi que `page` et `total` pour la pagination. Les cartes affichent le titre, l'entreprise, le lieu et la description courte. Les textes reçus sont insérés avec `textContent`.
+
+Fonctionnalités reliées :
+
+- Pagination de **six offres par page**, avec boutons Précédent et Suivant.
+- Recherche par titre, entreprise ou ville **dans la page chargée uniquement**, pas dans toute la base.
+- Détail affiché dans la même page, **sans rechargement ni popup**. Un texte de remplacement est prévu si le lieu ou la description manque.
+- Candidature sans compte avec prénom, nom, e-mail, message et téléphone facultatif. L'offre visée est déterminée par l'URL de la requête.
+- Confirmation seulement après une réponse de succès de l'API, avec la référence de la candidature. Le formulaire est désactivé pendant l'envoi et les champs sont conservés si l'envoi n'est pas confirmé.
+- Messages de chargement et d'erreur, avec un bouton Réessayer pour les offres. Aucune liste fictive ne remplace discrètement une API indisponible.
+- Navigation au clavier et styles de focus ; le titre Job Board permet de revenir à la liste.
+
+### À intégrer avec l'équipe
+
+- Les routes d'inscription, de connexion et de déconnexion, puis la gestion du compte. Aucune page de profil fonctionnelle n'est encore présente.
+- L'administration réelle et ses opérations protégées. Masquer une page ou un bouton ne remplace pas le contrôle des droits côté serveur.
+- L'envoi d'e-mail : une candidature enregistrée ne signifie pas qu'un e-mail a été envoyé (`email_envoye` reste à zéro sur cette route).
+
+Ne pas utiliser `POST /personnes` comme inscription publique : cette route est réservée à l'administrateur. Voir aussi [`frontend/README.md`](frontend/README.md) pour les détails du front.
+
+### Vérification manuelle du job board
+
+1. Lancer le serveur et vérifier que les offres viennent de l'API. Avec une base nouvellement initialisée par le seed actuel, 26 offres sont disponibles.
+2. Passer à la page suivante, revenir à la précédente et rechercher un titre présent sur la page affichée.
+3. Ouvrir puis fermer un détail et vérifier que la page ne se recharge pas.
+4. Envoyer une candidature fictive dans une base de test et vérifier la confirmation avec sa référence.
+5. Arrêter le serveur, déclencher un chargement et vérifier le message d'erreur. Relancer le serveur puis cliquer sur Réessayer.
+6. Vérifier l'affichage sur un petit écran et parcourir les contrôles avec la touche Tab.
