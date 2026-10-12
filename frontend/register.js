@@ -1,16 +1,35 @@
 const formulaire = document.querySelector("#register-form");
-formulaire.addEventListener("submit", (event) => {
+const message = document.querySelector("#register-message");
+
+formulaire.addEventListener("submit", async (event) => {
   event.preventDefault();
   const donnees = new FormData(formulaire);
-  const message = document.querySelector("#register-message");
-  if (!donnees.get("prenom").trim() || !donnees.get("nom").trim()) {
-    message.textContent = "Renseigne ton prénom et ton nom.";
-    return;
-  }
+  const bouton = formulaire.querySelector('button[type="submit"]');
   if (donnees.get("password") !== donnees.get("confirmPassword")) {
     message.textContent = "Les mots de passe doivent correspondre.";
     formulaire.elements.confirmPassword.focus();
     return;
   }
-  message.textContent = "Formulaire vérifié. Aucun compte créé : inscription indisponible pour le moment.";
+  if (String(donnees.get("password")).length < 8) {
+    message.textContent = "Le mot de passe doit contenir au moins 8 caractères.";
+    return;
+  }
+  bouton.disabled = true;
+  message.textContent = "Création du compte en cours…";
+  try {
+    const reponse = await fetch("/inscription", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ prenom: donnees.get("prenom"), nom: donnees.get("nom"),
+        email: donnees.get("email"), password: donnees.get("password") })
+    });
+    const resultat = await reponse.json();
+    if (!reponse.ok) throw new Error(resultat.erreur || "Impossible de créer le compte.");
+    message.textContent = "Compte créé ! Redirection…";
+    window.location.href = "/index.html";
+  } catch (erreur) {
+    message.textContent = erreur.message || "Erreur réseau. Réessaie.";
+  } finally {
+    bouton.disabled = false;
+  }
 });

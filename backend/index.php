@@ -38,6 +38,87 @@ $db = connecter();
 require __DIR__ . '/tables.php';     // $ressources et $liens : la fiche de chaque table
 
 
+// Routes d'authentification : les comptes utilisent la table personnes existante.
+if ($methode === 'POST' && $chemin === '/connexion') {
+    $donnees = lireJson();
+    $email = trim((string) ($donnees['email'] ?? ''));
+    $motDePasse = (string) ($donnees['password'] ?? '');
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL) || $motDePasse === '') {
+        erreur(400, 'Adresse e-mail ou mot de passe manquant/invalide');
+    }
+
+    $requete = $db->prepare('SELECT id, prenom, nom, email, mot_de_passe, role, entreprise_id FROM personnes WHERE email = :email LIMIT 1');
+    $requete->execute(['email' => $email]);
+    $personne = $requete->fetch();
+
+    if (!$personne || !password_verify($motDePasse, $personne['mot_de_passe'])) {
+        erreur(401, 'Adresse e-mail ou mot de passe incorrect');
+    }
+
+    session_regenerate_id(true);
+    unset($personne['mot_de_passe']);
+    $_SESSION['utilisateur'] = $personne;
+    repondre(200, ['message' => 'Connexion réussie', 'utilisateur' => $personne]);
+}
+
+// Renvoie le compte actuellement connecté (ou 401).
+if ($methode === 'GET' && $chemin === '/session') {
+    if (!isset($_SESSION['utilisateur'])) {
+        erreur(401, 'Aucun utilisateur connecté');
+    }
+    repondre(200, ['utilisateur' => $_SESSION['utilisateur']]);
+}
+
+// Déconnexion et suppression de la session.
+if ($methode === 'POST' && $chemin === '/deconnexion') {
+    $_SESSION = [];
+    if (ini_get('session.use_cookies')) {
+        $parametres = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000, $parametres['path'], $parametres['domain'], $parametres['secure'], $parametres['httponly']);
+    }
+    session_destroy();
+    repondre(200, ['message' => 'Déconnexion réussie']);
+}
+
+// Création de compte public : seul le rôle candidat peut être choisi depuis l'inscription.
+if ($methode === 'POST' && $chemin === '/inscription') {
+    $donnees = lireJson();
+    $prenom = trim((string) ($donnees['prenom'] ?? ''));
+    $nom = trim((string) ($donnees['nom'] ?? ''));
+    $email = trim((string) ($donnees['email'] ?? ''));
+    $motDePasse = (string) ($donnees['password'] ?? '');
+
+    if ($prenom === '' || $nom === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($motDePasse) < 8) {
+        erreur(400, 'Renseigne le prénom, le nom, un e-mail valide et un mot de passe de 8 caractères minimum');
+    }
+    $requete = $db->prepare('SELECT id FROM personnes WHERE email = :email');
+    $requete->execute(['email' => $email]);
+    if ($requete->fetch()) {
+        erreur(409, 'Cet e-mail est déjà utilisé');
+    }
+
+    $requete = $db->prepare('INSERT INTO personnes (prenom, nom, email, mot_de_passe, role) VALUES (:prenom, :nom, :email, :mot_de_passe, :role)');
+    $requete->execute([
+        'prenom' => $prenom,
+        'nom' => $nom,
+        'email' => $email,
+        'mot_de_passe' => password_hash($motDePasse, PASSWORD_DEFAULT),
+        'role' => 'candidat'
+    ]);
+    $personne = [
+        'id' => (int) $db->lastInsertId(),
+        'prenom' => $prenom,
+        'nom' => $nom,
+        'email' => $email,
+        'role' => 'candidat',
+        'entreprise_id' => null
+    ];
+    session_regenerate_id(true);
+    $_SESSION['utilisateur'] = $personne;
+    repondre(201, ['message' => 'Compte créé avec succès', 'utilisateur' => $personne]);
+}
+
 // 4. Route spécifique : Postuler à une offre (POST /offres/{id}/candidatures) — public
 if ($methode === 'POST' && preg_match('#^/offres/(\d+)/candidatures$#', $chemin, $m)) {
     // « /offres/3/candidatures » → $m[1] vaut '3'. L'offre doit exister → sinon 404
