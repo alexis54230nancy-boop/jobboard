@@ -22,44 +22,59 @@
 
   <main class="page">
     <section class="intro">
-      <p class="eyebrow">Opportunites tech</p>
+      <p class="eyebrow">Opportunités tech</p>
       <h1>Trouve une offre et postule simplement</h1>
-      <p>Parcours les offres disponibles, consulte les details et envoie ta candidature sans recharger la page.</p>
     </section>
 
     <section class="toolbar" aria-label="Filtres">
-      <label for="search">Rechercher</label>
+      <label for="search">Rechercher sur cette page</label>
       <input id="search" type="search" placeholder="Titre, entreprise, ville...">
     </section>
 
-    <section>
+    <section aria-label="Offres disponibles">
+      <p id="offers-message" role="status"></p>
+      <button id="retry-offers" type="button" hidden>Réessayer</button>
       <div id="offers-list" class="offers-grid"></div>
+      <div class="pagination" role="group" aria-label="Pages des offres">
+        <button id="previous-page" type="button" disabled>Précédent</button>
+        <span id="page-status" role="status"></span>
+        <button id="next-page" type="button" disabled>Suivant</button>
+      </div>
     </section>
 
-    <section id="offer-detail" class="panel" hidden></section>
+    <section id="offer-detail" class="panel" aria-labelledby="detail-title" hidden>
+      <h2 id="detail-title" tabindex="-1"></h2>
+      <p id="detail-company"></p>
+      <p id="detail-location"></p>
+      <p id="detail-description"></p>
+      <button id="close-detail" type="button" class="secondary">Fermer les détails</button>
+    </section>
 
-    <section id="apply-panel" class="panel" hidden>
-      <h2>Postuler</h2>
+    <section id="apply-panel" class="panel" aria-labelledby="apply-title" hidden>
+      <h2 id="apply-title">Postuler</h2>
+      <p id="apply-offer"></p>
       <form id="apply-form">
+        <fieldset id="apply-fields" aria-label="Candidature">
+        <input type="hidden" name="offre_id">
         <div class="form-grid">
           <label>
-            Prenom
-            <input name="prenom" required>
+            Prénom
+            <input name="prenom" autocomplete="given-name" required>
           </label>
 
           <label>
             Nom
-            <input name="nom" required>
+            <input name="nom" autocomplete="family-name" required>
           </label>
 
           <label>
             Email
-            <input name="email" type="email" required>
+            <input name="email" type="email" autocomplete="email" required>
           </label>
 
           <label>
-            Telephone
-            <input name="telephone">
+            Téléphone (facultatif)
+            <input name="telephone" type="tel" autocomplete="tel">
           </label>
         </div>
 
@@ -69,9 +84,11 @@
         </label>
 
         <button type="submit">Envoyer ma candidature</button>
+        <button id="close-apply" type="button" class="secondary">Fermer</button>
+        </fieldset>
       </form>
 
-      <p id="apply-message" class="feedback"></p>
+      <p id="apply-message" class="feedback" role="status"></p>
     </section>
   </main>
 
