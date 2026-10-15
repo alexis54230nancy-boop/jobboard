@@ -3,7 +3,7 @@
 Un site d'offres d'emploi : les visiteurs consultent les offres et postulent, et un administrateur gère toutes les données.
 
 - **Back end** : une API REST en PHP, sans framework, avec une base SQLite.
-- **Front end** : HTML, CSS et JavaScript. Le job board utilise l'API avec `fetch()` ; les pages d'authentification et d'administration restent à relier.
+- **Front end** : HTML, CSS et JavaScript, sans framework. Toutes les données affichées viennent de l'API, avec `fetch()`.
 
 ## Installation et lancement
 
@@ -28,7 +28,7 @@ Laisser ce terminal ouvert pendant l'utilisation du site ; `Ctrl+C` arrête le s
 
 ## Comptes de test
 
-Créés par `seed.php`. Les comptes existent dans la base, mais les routes de connexion et d'inscription restent à intégrer : les formulaires ne permettent pas encore de se connecter.
+Créés par `seed.php`. Se connecter sur http://localhost:8000/login.html : l'admin arrive sur l'administration, les autres comptes sur le job board.
 
 | Rôle | E-mail | Mot de passe |
 |---|---|---|
@@ -46,12 +46,12 @@ backend/
 ├── schema.sql     les tables de la base
 ├── seed.php       les données de test
 ├── database.php   connecter() : la connexion à la base
-├── auth.php       exigerAdmin() : la protection des routes admin
+├── auth.php       la session, et exigerAdmin() : la protection des routes admin
 ├── index.php      l'API : toutes les requêtes arrivent ici
 ├── tables.php     la description des 5 tables
 ├── outils.php     les fonctions de l'API : repondre(), verifier()…
 └── front.php      l'envoi des pages du front
-frontend/          les pages, le CSS et le JavaScript
+frontend/          les pages, le CSS et le JavaScript (voir « Pages »)
 scripts/
 └── init-db.php    initialise uniquement une base absente
 ```
@@ -119,9 +119,10 @@ Dans `index.php`, toujours dans le même ordre :
 1. **Lecture** de la méthode et du chemin.
 2. **Front** : si le chemin désigne un fichier de `frontend/`, il est envoyé et on s'arrête là.
 3. **Initialisation** : réponses en JSON, session, connexion à la base, description des tables.
-4. **Postuler** : la route `POST /offres/{id}/candidatures`.
-5. **Les cinq routes** de la table demandée : droits, existence de la ligne, puis l'action.
-6. **Sinon**, 404 « Route introuvable ».
+4. **Authentification** : `/connexion`, `/inscription`, `/deconnexion`, `/session`.
+5. **Postuler** : la route `POST /offres/{id}/candidatures`.
+6. **Les cinq routes** de la table demandée : droits, existence de la ligne, puis l'action.
+7. **Sinon**, 404 « Route introuvable ».
 
 ### Les cinq routes de chaque table
 
@@ -175,9 +176,21 @@ Une erreur a toujours la forme `{ "erreur": "Le champ titre est requis" }`.
 
 ## Authentification
 
-> **À compléter (B).** Les routes de connexion, d'inscription et de gestion du compte.
+La connexion utilise une **session PHP** : le serveur range le compte dans `$_SESSION['utilisateur']`, et le navigateur renvoie automatiquement le cookie de session à chaque requête. Le front et l'API étant servis à la même adresse, aucun réglage supplémentaire n'est nécessaire.
 
-Les routes admin appellent `exigerAdmin()` (`backend/auth.php`), qui lit `$_SESSION['utilisateur']`. La connexion doit y ranger au moins `id` et `role`. « Postuler » s'en sert aussi pour reconnaître un candidat connecté.
+| Méthode | Route | Rôle | Succès |
+|---|---|---|---|
+| POST | `/connexion` | Se connecter : `{ "email", "password" }` | 200, avec `utilisateur` |
+| POST | `/inscription` | Créer un compte **candidat** : `{ "prenom", "nom", "email", "password" }` (8 caractères min.) | 201, déjà connecté |
+| GET | `/session` | Le compte connecté (401 si personne) | 200 |
+| POST | `/deconnexion` | Se déconnecter | 200 |
+
+Règles de sécurité :
+
+- L'inscription crée toujours un `candidat` : impossible de se déclarer admin. Seul un admin change un rôle, depuis l'administration.
+- Un admin ne peut pas supprimer son propre compte (409) : il perdrait l'accès à l'administration. La page d'administration l'empêche aussi de se retirer le rôle admin.
+- Les routes admin appellent `exigerAdmin()` (`backend/auth.php`) : 401 si personne n'est connecté, 403 si le compte n'est pas admin. **Cacher une page côté front ne protège rien** : c'est ce contrôle côté serveur qui protège les données.
+- Un candidat connecté qui postule n'envoie que son message : le serveur reprend ses coordonnées dans son compte et remplit `personne_id`.
 
 ## Pages
 
@@ -185,14 +198,16 @@ Les routes admin appellent `exigerAdmin()` (`backend/auth.php`), qui lit `$_SESS
 
 Le front est réalisé en **HTML, CSS et JavaScript, sans framework**. Le serveur PHP sert aussi les fichiers du dossier `frontend/` : il faut ouvrir le site avec `http://localhost:8000/`, pas directement avec un fichier HTML. Aucun serveur Node séparé n'est nécessaire.
 
-| Fichier | Rôle et état actuel |
+| Fichier | Rôle |
 |---|---|
-| `frontend/index.html` | Liste des offres, recherche, pagination, panneau de détail et formulaire de candidature. |
-| `frontend/app.js` | Appels à l'API, création des cartes, événements et gestion du chargement, des succès et des erreurs. |
-| `frontend/style.css` | Style commun, police Space Grotesk avec une police de secours, grille responsive et adaptation du formulaire aux petits écrans. |
-| `frontend/login.html` et `login.js` | Interface de connexion. Un message précise qu'aucune connexion n'est effectuée. |
-| `frontend/register.html` et `register.js` | Interface d'inscription et vérification des champs et de la confirmation du mot de passe. Aucun compte n'est créé pour le moment. |
-| `frontend/admin.html` et `admin.js` | Aperçu avec des candidatures fictives, clairement signalées. Pas encore de gestion des données réelles. |
+| `index.html` + `app.js` | **Job board** : liste paginée, recherche, détail « En savoir plus » et formulaire « Postuler ». |
+| `login.html` + `login.js` | **Connexion**. Redirige l'admin vers `admin.html`, les autres vers le job board. |
+| `register.html` + `register.js` | **Créer ou modifier un compte** : inscription si personne n'est connecté, « Mon compte » (formulaire pré-rempli) sinon. La modification attend la route `PUT /session` (voir « Limites connues »). |
+| `admin.html` + `admin.js` | **Administration** : les 5 tables, avec liste paginée, ajout, modification et suppression. |
+| `session.js` | Partagé par toutes les pages : demande qui est connecté (`GET /session`) et adapte la navigation (Connexion/Inscription, ou Mon compte/Administration/Déconnexion). |
+| `style.css` | Style commun, police Space Grotesk avec une police de secours, mise en page adaptée aux petits écrans. |
+
+Chaque page charge `session.js` **avant** son propre script. `session.js` expose la promesse `sessionCourante`, que les autres scripts attendent avec `sessionCourante.then((utilisateur) => …)` (`utilisateur` vaut `null` si personne n'est connecté).
 
 ### Liaison avec l'API
 
@@ -201,6 +216,9 @@ Le front est réalisé en **HTML, CSS et JavaScript, sans framework**. Le serveu
 | Afficher les offres ou changer de page | `GET /offres?page=1&par_page=6` (le numéro de page varie) |
 | Cliquer sur « En savoir plus » | `GET /offres/{id}` |
 | Envoyer une candidature | `POST /offres/{id}/candidatures` avec un corps JSON |
+| Se connecter, s'inscrire, se déconnecter | `POST /connexion`, `POST /inscription`, `POST /deconnexion` |
+| Modifier son compte (« Mon compte ») | `PUT /session` — **route à ajouter côté back** |
+| Administration | `GET`, `POST`, `PUT`, `DELETE` sur `/{table}` et `/{table}/{id}` |
 
 La liste utilise le tableau `offres` de la réponse, ainsi que `page` et `total` pour la pagination. Les cartes affichent le titre, l'entreprise, le lieu et la description courte. Les textes reçus sont insérés avec `textContent`.
 
@@ -208,19 +226,27 @@ Fonctionnalités reliées :
 
 - Pagination de **six offres par page**, avec boutons Précédent et Suivant.
 - Recherche par titre, entreprise ou ville **dans la page chargée uniquement**, pas dans toute la base.
-- Détail affiché dans la même page, **sans rechargement ni popup**. Un texte de remplacement est prévu si le lieu ou la description manque.
-- Candidature sans compte avec prénom, nom, e-mail, message et téléphone facultatif. L'offre visée est déterminée par l'URL de la requête.
+- Détail affiché dans la même page, **sans rechargement ni popup** : entreprise, catégorie, lieu, contrat, temps de travail, salaire, date de publication et description complète. Un texte de remplacement est prévu pour chaque information manquante.
+- Candidature sans compte avec prénom, nom, e-mail, message et téléphone facultatif. **Connecté, seul le message est demandé** : les champs d'identité sont cachés et le serveur reprend les coordonnées du compte. L'offre visée est déterminée par l'URL de la requête.
 - Confirmation seulement après une réponse de succès de l'API, avec la référence de la candidature. Le formulaire est désactivé pendant l'envoi et les champs sont conservés si l'envoi n'est pas confirmé.
 - Messages de chargement et d'erreur, avec un bouton Réessayer pour les offres. Aucune liste fictive ne remplace discrètement une API indisponible.
 - Navigation au clavier et styles de focus ; le titre Job Board permet de revenir à la liste.
 
-### À intégrer avec l'équipe
+### L'administration
 
-- Les routes d'inscription, de connexion et de déconnexion, puis la gestion du compte. Aucune page de profil fonctionnelle n'est encore présente.
-- L'administration réelle et ses opérations protégées. Masquer une page ou un bouton ne remplace pas le contrôle des droits côté serveur.
-- L'envoi d'e-mail : une candidature enregistrée ne signifie pas qu'un e-mail a été envoyé (`email_envoye` reste à zéro sur cette route).
+`admin.js` décrit chaque table une seule fois (colonnes du tableau, champs du formulaire), sur le même principe que `tables.php` côté serveur : le même code construit la liste et le formulaire des 5 tables.
 
-Ne pas utiliser `POST /personnes` comme inscription publique : cette route est réservée à l'administrateur. Voir aussi [`frontend/README.md`](frontend/README.md) pour les détails du front.
+- Un onglet par table, 10 lignes par page, avec Précédent et Suivant.
+- **Ajouter** et **Modifier** ouvrent le même formulaire au-dessus de la liste (pré-rempli en modification). Les clés étrangères (`entreprise_id`, `categorie_id`…) se choisissent dans une liste déroulante chargée depuis l'API (100 éléments au plus).
+- **Supprimer** demande une confirmation. Une suppression refusée par la base, par exemple une catégorie encore utilisée, affiche le message du serveur.
+- Un visiteur non connecté est renvoyé vers la connexion ; un compte non admin voit « Cette page est réservée aux administrateurs ».
+
+### Limites connues
+
+- **Modifier son compte : la route `PUT /session` reste à écrire côté back.** La page « Mon compte » est prête et envoie `{ prenom, nom, email, telephone, password }` (`password` vide = inchangé). La route doit modifier **uniquement** le compte de la session, ignorer `role` et `entreprise_id`, et répondre `{ "utilisateur": { … } }`. En attendant, la page affiche « pas encore disponible côté serveur ».
+- **Aucun e-mail n'est réellement envoyé.** La table `candidatures` garde l'information dans `email_envoye` (0 par défaut), que l'admin peut cocher une fois le candidat contacté.
+- La recherche du job board porte sur la page chargée, pas sur toute la base.
+- Les comptes de test ont des mots de passe connus : ne pas déployer cette base en production.
 
 ### Vérification manuelle du job board
 
@@ -228,5 +254,7 @@ Ne pas utiliser `POST /personnes` comme inscription publique : cette route est r
 2. Passer à la page suivante, revenir à la précédente et rechercher un titre présent sur la page affichée.
 3. Ouvrir puis fermer un détail et vérifier que la page ne se recharge pas.
 4. Envoyer une candidature fictive dans une base de test et vérifier la confirmation avec sa référence.
-5. Arrêter le serveur, déclencher un chargement et vérifier le message d'erreur. Relancer le serveur puis cliquer sur Réessayer.
-6. Vérifier l'affichage sur un petit écran et parcourir les contrôles avec la touche Tab.
+5. Se connecter avec `alexis@example.com` : la navigation affiche « Mon compte », et « Postuler » ne demande plus que le message.
+6. Se déconnecter, puis se connecter avec `chams@example.com` : redirection vers l'administration. Ajouter une entreprise, modifier une offre, tenter de supprimer une catégorie utilisée (refusé).
+7. Arrêter le serveur, déclencher un chargement et vérifier le message d'erreur. Relancer le serveur puis cliquer sur Réessayer.
+8. Vérifier l'affichage sur un petit écran et parcourir les contrôles avec la touche Tab.

@@ -1,6 +1,6 @@
 # Job Board - Frontend
 
-Le front est maintenant relie a l'API PHP de la branche `feature/api-offres` (commit `6051db8`). Il doit etre ouvert via le serveur PHP, plus directement comme un fichier local.
+HTML, CSS et JavaScript sans framework. Les pages sont servies par le serveur PHP, a la meme adresse que l'API : il faut les ouvrir via http://localhost:8000/, pas directement comme fichiers locaux.
 
 ## Lancement
 
@@ -14,35 +14,40 @@ cd backend
 php -S localhost:8000 index.php
 ```
 
-Ouvrir http://localhost:8000/ et laisser le terminal du serveur ouvert. Ctrl+C arrete le serveur. Si le port est deja utilise, choisir par exemple 8001 dans la commande et l'adresse.
+Ouvrir http://localhost:8000/ et laisser le terminal du serveur ouvert. Ctrl+C arrete le serveur.
 
-`init-db.php` cree et remplit uniquement une base absente. Une base existante est conservee. Ne pas relancer directement `backend/seed.php` sur une base a conserver : ce script efface les donnees avant de recreer ses exemples.
+`init-db.php` cree et remplit uniquement une base absente. Ne pas relancer directement `backend/seed.php` sur une base a conserver : ce script efface les donnees avant de recreer ses exemples.
+
+## Les pages
+
+| Page | Script | Role |
+| --- | --- | --- |
+| `index.html` | `app.js` | Job board : liste paginee, recherche, detail, candidature |
+| `login.html` | `login.js` | Connexion ; l'admin est redirige vers `admin.html`, les autres vers le job board |
+| `register.html` | `register.js` | Inscription, ou « Mon compte » si l'utilisateur est deja connecte |
+| `admin.html` | `admin.js` | Administration des 5 tables (reservee a l'admin) |
+
+Chaque page charge d'abord `session.js`, puis son propre script. `session.js` appelle `GET /session` et met a jour la navigation. Il expose la promesse `sessionCourante` : `sessionCourante.then((utilisateur) => ...)` donne le compte connecte, ou `null`.
 
 ## Routes utilisees
 
-| Action | Route | Reponse |
-| --- | --- | --- |
-| Liste | `GET /offres?page=1&par_page=6` | `{ offres: [...], page: 1, total: 4 }` |
-| Detail | `GET /offres/{id}` | Un objet offre |
-| Candidature | `POST /offres/{id}/candidatures` | `201` et l'objet enregistre |
-
-Champs de candidature : `prenom`, `nom`, `email`, `message`, `telephone` facultatif. L'offre est determinee par l'URL. Le serveur valide les donnees et enregistre dans `backend/jobboard.db`.
-
-Le front et l'API sont servis a la meme adresse. Aucun serveur Node ni reglage CORS n'est necessaire pour ce lancement local.
+| Action | Route |
+| --- | --- |
+| Liste des offres | `GET /offres?page=1&par_page=6` |
+| Detail d'une offre | `GET /offres/{id}` |
+| Candidature | `POST /offres/{id}/candidatures` |
+| Connexion / deconnexion | `POST /connexion`, `POST /deconnexion` |
+| Qui est connecte ? | `GET /session` |
+| Inscription | `POST /inscription` |
+| Modifier son compte | `PUT /session` (route a ajouter cote back : en attendant, la page affiche un message) |
+| Administration | `GET`, `POST`, `PUT`, `DELETE` sur `/{table}` et `/{table}/{id}` |
 
 ## Comportement
 
-- Liste issue de SQLite, avec pagination de six offres.
-- Recherche locale par titre, entreprise ou ville dans la page chargee. L'API ne fournit pas de recherche textuelle globale dans cette version.
-- Detail charge a la demande, sans popup ni rechargement. Les descriptions et lieux absents ont une valeur de remplacement.
-- Candidature publique en JSON, confirmation seulement apres une reponse de succes. Champs conserves en cas d'erreur ; formulaire desactive pendant l'envoi.
-- Une candidature enregistree ne signifie pas qu'un email a ete envoye : cette API laisse `email_envoye` a zero.
-- Les erreurs de chargement permettent de reessayer ; aucun tableau fictif ne masque une panne de l'API.
-
-## Encore en attente
-
-`backend/auth.php` contient `exigerAdmin()` et la session, mais aucune route publique de connexion, inscription ou deconnexion n'est presente dans la branche recuperee.
-
-Les pages de compte restent donc des interfaces non connectees. La page admin conserve son apercu fictif clairement indique et n'est pas encore branchee aux operations protegees. Ne pas utiliser `POST /personnes` comme inscription publique : cette route exige un administrateur.
-
-L'integration de l'authentification, l'administration complete, l'envoi d'email et la verification finale du sujet restent a faire avec l'equipe. Ne pas deployer les comptes et donnees de test comme un service de production.
+- Liste issue de SQLite, avec pagination de six offres. La recherche porte sur la page chargee.
+- Detail charge a la demande, sans popup ni rechargement : entreprise, categorie, lieu, contrat, temps de travail, salaire, date et description complete.
+- Candidature : sans compte, prenom, nom, e-mail et message sont demandes. Connecte, seul le message est demande ; le serveur reprend les coordonnees du compte.
+- Confirmation seulement apres une reponse de succes ; champs conserves en cas d'erreur ; formulaire desactive pendant l'envoi.
+- Administration : un onglet par table, 10 lignes par page, ajout et modification dans un formulaire au-dessus de la liste, suppression apres confirmation. Les cles etrangeres se choisissent dans des listes deroulantes.
+- Tous les textes venant de l'API sont inseres avec `textContent` : aucun HTML de la base n'est interprete.
+- Cacher une page ou un bouton ne protege rien : les droits sont verifies par le serveur (`exigerAdmin()` dans `backend/auth.php`).

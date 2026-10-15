@@ -191,6 +191,7 @@ label {
 }
 
 input,
+select,
 textarea {
   width: 100%;
   margin-top: 6px;
@@ -221,6 +222,112 @@ td {
 
 th {
   background: #facc15;
+}
+
+/* Les tableaux gardent une largeur lisible et défilent horizontalement sur petit écran,
+   au lieu de couper les mots lettre par lettre */
+.table-wrap table {
+  min-width: 720px;
+}
+
+th,
+td {
+  overflow-wrap: normal;
+}
+
+/* Navigation : le bouton Déconnexion a l'allure des liens */
+nav button {
+  min-height: 0;
+  padding: 7px 12px;
+  background: #ffffff;
+}
+
+nav a[aria-current="page"] {
+  background: #facc15;
+}
+
+/* Détail d'une offre : libellé à gauche, valeur à droite */
+.details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 18px;
+  margin: 0 0 18px;
+}
+
+.details dt {
+  font-weight: 700;
+}
+
+.details dd {
+  margin: 0;
+}
+
+/* Administration */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 24px 0;
+}
+
+.tabs button {
+  background: #ffffff;
+}
+
+.tabs button[aria-pressed="true"] {
+  color: #ffffff;
+  background: #111827;
+}
+
+.admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.admin-toolbar h2 {
+  margin: 0;
+}
+
+.admin-form {
+  max-width: none;
+  margin-bottom: 28px;
+}
+
+.admin-form h3 {
+  margin: 0 0 18px;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+label.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+label.checkbox input {
+  width: auto;
+  margin: 0;
+}
+
+.row-actions {
+  white-space: nowrap;
+}
+
+.row-actions button {
+  min-height: 0;
+  padding: 6px 10px;
+  margin: 2px;
+}
+
+button.danger {
+  background: #fecaca;
 }
 
 @media (max-width: 700px) {

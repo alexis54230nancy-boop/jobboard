@@ -44,8 +44,7 @@
 
     <section id="offer-detail" class="panel" aria-labelledby="detail-title" hidden>
       <h2 id="detail-title" tabindex="-1"></h2>
-      <p id="detail-company"></p>
-      <p id="detail-location"></p>
+      <dl id="detail-infos" class="details"></dl>
       <p id="detail-description"></p>
       <button id="close-detail" type="button" class="secondary">Fermer les détails</button>
     </section>
@@ -56,7 +55,8 @@
       <form id="apply-form">
         <fieldset id="apply-fields" aria-label="Candidature">
         <input type="hidden" name="offre_id">
-        <div class="form-grid">
+        <p id="apply-identity" class="notice" hidden></p>
+        <div id="identity-fields" class="form-grid">
           <label>
             Prénom
             <input name="prenom" autocomplete="given-name" required>
@@ -92,6 +92,7 @@
     </section>
   </main>
 
+  <script src="session.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

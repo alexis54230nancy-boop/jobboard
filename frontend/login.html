@@ -1,39 +1,44 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Connexion - Job Board</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connexion - Job Board</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <header class="site-header">
-      <a class="brand" href="index.html">Job Board</a>
-      <nav aria-label="Navigation principale">
-        <a href="index.html">Offres</a>
-        <a href="register.html">Inscription</a>
-      </nav>
-    </header>
-    <main class="page">
-    <h1>Connexion</h1>
-    <p class="notice">Connecte-toi avec ton adresse e-mail et ton mot de passe.</p>
-    <form id="login-form">
-        <label>
-            Email
-            <input name="email" type="email" autocomplete="username" required>
-        </label>
-            <label>
-            Mot de passe
-            <input name="password" type="password" autocomplete="current-password" required>
-            </label>
-            <button type="submit" >Se connecter</button>
+  <header class="site-header">
+    <a class="brand" href="index.html">Job Board</a>
+    <nav class="site-nav" aria-label="Navigation principale">
+      <a href="index.html">Offres</a>
+      <a href="register.html">Inscription</a>
+    </nav>
+  </header>
 
-    </form>
-    <p id="login-message" role="status"></p>
-    </main>
-    <script src="login.js"></script>
+  <main class="page">
+    <section class="panel">
+      <h1>Connexion</h1>
+      <p class="notice">Connecte-toi avec ton adresse e-mail et ton mot de passe.</p>
+      <form id="login-form">
+        <label>
+          Email
+          <input name="email" type="email" autocomplete="username" required>
+        </label>
+        <label>
+          Mot de passe
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit">Se connecter</button>
+      </form>
+      <p id="login-message" role="status"></p>
+      <p>Pas encore de compte ? <a href="register.html">Inscris-toi</a>.</p>
+    </section>
+  </main>
+
+  <script src="session.js"></script>
+  <script src="login.js"></script>
 </body>
 </html>

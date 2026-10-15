@@ -20,6 +20,7 @@ let numeroDemandeDetail = 0;
 let offreSelectionnee = null;
 let boutonOrigineDetail = null;
 let boutonOrigineCandidature = null;
+let utilisateur = null;   // le compte connecté (voir session.js), ou null
 
 // L'API renvoie { offres: [...], page: 1, total: 4 }, pas directement un tableau.
 async function recupererOffres(page) {
@@ -82,13 +83,34 @@ function filtrerOffres() {
   afficherOffres(selection);
 }
 
+// [["Lieu", "Nancy"], …] → une liste <dl> : <dt>Lieu</dt><dd>Nancy</dd>…
+function afficherInfos(lignes) {
+  const liste = document.querySelector("#detail-infos");
+  liste.replaceChildren();
+  for (const [libelle, valeur] of lignes) {
+    const terme = document.createElement("dt");
+    terme.textContent = libelle;
+    const definition = document.createElement("dd");
+    definition.textContent = valeur;
+    liste.append(terme, definition);
+  }
+}
+
+// Le salaire est rangé en deux nombres (brut annuel) : min et max, égaux pour un salaire fixe
+function formaterSalaire(min, max) {
+  const euros = (n) => n.toLocaleString("fr-FR") + " €";
+  if (min === null && max === null) return "Selon profil";
+  if (max === null || min === max) return euros(min ?? max) + " brut / an";
+  if (min === null) return "Jusqu'à " + euros(max) + " brut / an";
+  return euros(min) + " – " + euros(max) + " brut / an";
+}
+
 async function afficherDetail(id) {
   // Seule la derniere demande peut modifier le panneau apres des clics rapides.
   const numero = ++numeroDemandeDetail;
   detail.hidden = false;
   document.querySelector("#detail-title").textContent = "Chargement de l'offre…";
-  document.querySelector("#detail-company").textContent = "";
-  document.querySelector("#detail-location").textContent = "";
+  document.querySelector("#detail-infos").replaceChildren();
   document.querySelector("#detail-description").textContent = "";
   document.querySelector("#detail-title").focus();
   try {
@@ -99,8 +121,15 @@ async function afficherDetail(id) {
     }
     if (numero !== numeroDemandeDetail) return;
     document.querySelector("#detail-title").textContent = offre.titre;
-    document.querySelector("#detail-company").textContent = offre.entreprise;
-    document.querySelector("#detail-location").textContent = offre.lieu || "Lieu non précisé";
+    afficherInfos([
+      ["Entreprise", offre.entreprise],
+      ["Catégorie", offre.categorie],
+      ["Lieu", offre.lieu || "Lieu non précisé"],
+      ["Contrat", offre.type_de_contrat || "Non précisé"],
+      ["Temps de travail", offre.temps_de_travail || "Non précisé"],
+      ["Salaire", formaterSalaire(offre.salaire_min, offre.salaire_max)],
+      ["Publiée le", offre.date_de_publication.split("-").reverse().join("/")]   // « 2026-10-15 » → « 15/10/2026 »
+    ]);
     document.querySelector("#detail-description").textContent = offre.description || offre.description_courte;
   } catch (erreur) {
     if (numero !== numeroDemandeDetail) return;
@@ -118,7 +147,22 @@ function ouvrirCandidature(id) {
   formulaire.elements.offre_id.value = offreSelectionnee.id;
   messageCandidature.textContent = "";
   panneauCandidature.hidden = false;
-  formulaire.elements.prenom.focus();
+  (utilisateur ? formulaire.elements.message : formulaire.elements.prenom).focus();
+}
+
+// Utilisateur connecté → ses coordonnées sont déjà connues : on cache les champs d'identité.
+function adapterFormulaire() {
+  const champsIdentite = document.querySelector("#identity-fields");
+  const identite = document.querySelector("#apply-identity");
+  champsIdentite.hidden = utilisateur !== null;
+  identite.hidden = utilisateur === null;
+  for (const champ of ["prenom", "nom", "email"]) {
+    formulaire.elements[champ].required = utilisateur === null;   // un champ caché ne peut pas être requis
+  }
+  if (utilisateur) {
+    identite.textContent = "Tu postules en tant que " + utilisateur.prenom + " " + utilisateur.nom
+      + " (" + utilisateur.email + ") : tes coordonnées sont reprises de ton compte.";
+  }
 }
 
 formulaire.addEventListener("submit", async (event) => {
@@ -126,7 +170,8 @@ formulaire.addEventListener("submit", async (event) => {
   if (!offreSelectionnee || envoiEnCours) return;
 
   const donnees = new FormData(formulaire);
-  const champsObligatoires = ["prenom", "nom", "email", "message"];
+  // Connecté : seul le message est demandé, le serveur reprend le reste du compte
+  const champsObligatoires = utilisateur ? ["message"] : ["prenom", "nom", "email", "message"];
   for (const champ of champsObligatoires) {
     if (!donnees.get(champ).trim()) {
       messageCandidature.textContent = "Complète les champs obligatoires avec autre chose que des espaces.";
@@ -134,7 +179,9 @@ formulaire.addEventListener("submit", async (event) => {
       return;
     }
   }
-  const candidature = Object.fromEntries(donnees.entries());
+  const candidature = utilisateur
+    ? { message: donnees.get("message") }
+    : Object.fromEntries(donnees.entries());
   const offre = offreSelectionnee;
   envoiEnCours = true;
   champsCandidature.disabled = true;
@@ -218,4 +265,8 @@ recherche.addEventListener("input", filtrerOffres);
 boutonPrecedent.addEventListener("click", () => chargerPage(pageCourante - 1));
 boutonSuivant.addEventListener("click", () => chargerPage(pageCourante + 1));
 boutonReessayer.addEventListener("click", () => chargerPage(pageCourante));
+sessionCourante.then((compte) => {
+  utilisateur = compte;
+  adapterFormulaire();
+});
 chargerPage(1);

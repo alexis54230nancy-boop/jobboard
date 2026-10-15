@@ -17,25 +17,48 @@
   </header>
 
   <main class="page">
-    <section class="panel">
-      <h1>Administration</h1>
-      <p class="notice">Démonstration : candidatures fictives. Accès administrateur non activé.</p>
+    <h1>Administration</h1>
+    <p id="admin-message" role="status">Vérification de la connexion…</p>
 
+    <!-- Affiché seulement pour un admin (voir admin.js) -->
+    <div id="admin-content" hidden>
+      <div id="table-tabs" class="tabs" role="group" aria-label="Tables de la base"></div>
+
+      <div class="admin-toolbar">
+        <h2 id="table-title"></h2>
+        <button id="new-record" type="button">Ajouter</button>
+      </div>
+
+      <!-- Formulaire de création / modification, affiché au-dessus de la liste -->
+      <section id="record-panel" aria-labelledby="record-title" hidden>
+        <form id="record-form" class="admin-form">
+          <h3 id="record-title" tabindex="-1"></h3>
+          <fieldset id="record-fieldset">
+            <div id="record-fields" class="form-grid"></div>
+            <button type="submit">Enregistrer</button>
+            <button id="cancel-record" type="button" class="secondary">Annuler</button>
+          </fieldset>
+          <p id="record-message" role="status"></p>
+        </form>
+      </section>
+
+      <p id="table-message" role="status"></p>
       <div class="table-wrap">
         <table>
-          <thead>
-            <tr>
-              <th scope="col">Offre</th>
-              <th scope="col">Candidat</th>
-              <th scope="col">Date</th>
-            </tr>
-          </thead>
-          <tbody id="applications-list"></tbody>
+          <thead><tr id="records-head"></tr></thead>
+          <tbody id="records-body"></tbody>
         </table>
       </div>
-    </section>
+
+      <div class="pagination" role="group" aria-label="Pages">
+        <button id="previous-page" type="button" disabled>Précédent</button>
+        <span id="page-status"></span>
+        <button id="next-page" type="button" disabled>Suivant</button>
+      </div>
+    </div>
   </main>
 
+  <script src="session.js"></script>
   <script src="admin.js"></script>
 </body>
 </html>
